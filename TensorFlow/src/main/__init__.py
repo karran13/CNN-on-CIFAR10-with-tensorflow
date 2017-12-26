@@ -239,8 +239,7 @@ def optimize(num_iterations):
             # Print status.
             msg = "Global Step: {0:>6}, Training Batch Accuracy: {1:>6.1%}"
             print(msg.format(i_global, batch_acc))
-
-        # Save a checkpoint to disk every 1000 iterations (and last).        
+       
 
 
 
