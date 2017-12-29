@@ -7,58 +7,20 @@ Created on Dec 22, 2017
 import tensorflow as tf
 import numpy as np
 import time
+from main.help_func import processHelp
+from main.help_data import dataHelper
 
 path = "C:\\Users\\Binki\\Downloads\\cifar-10-python.tar\\cifar-10-python\\cifar-10-batches-py\\data_batch_1"
 
 # fix up data
 
-def _variable_on_cpu(name, shape, initializer):
-    with tf.device('/cpu:0'):
-        dtype = tf.float32
-        var = tf.get_variable(name, shape, initializer=initializer, dtype=dtype)
-    return var
+helper=processHelp()
 
+train_data=dataHelper(path)
 
-def _variable_with_weight_decay(name, shape, stddev, wd):
-    dtype = tf.float32
-    var = _variable_on_cpu(
-      name,
-      shape,
-      tf.truncated_normal_initializer(stddev=stddev, dtype=dtype))
-    return var
+data_set_train=train_data.returnDataset()
 
-
-def unpickle(file):
-    import pickle
-    with open(file, 'rb') as fo:
-        dict = pickle.load(fo, encoding='bytes')
-    return dict
-
-
-data_dict = unpickle(path)
-
-# for key,val in data_dict.items():
-#     print("{} = {}".format(key, val))
-
-data = 'data'
-labels = 'labels'
-
-data_key = data.encode(encoding='utf_8', errors='strict')
-label_key = labels.encode(encoding='utf_8', errors='strict')
-
-
-data_set_train = data_dict[data_key]
-
-data_set_train = np.array(data_set_train)
-data_set_train = np.reshape(data_set_train, [-1, 3, 32, 32])
-data_set_train = data_set_train.transpose([0, 2, 3, 1])
-print(len(data_set_train))
-
-data_set_labels = np.array(data_dict[label_key])
-
-num_classes = np.max(data_set_labels) + 1
-
-data_set_labels = np.eye(num_classes, dtype=float)[data_set_labels]
+data_set_labels,num_classes=train_data.returnLabelsNumClasses()
 
 
 
@@ -66,41 +28,6 @@ data_set_labels = np.eye(num_classes, dtype=float)[data_set_labels]
 
 
 
-def pre_process_image(image,training):
-    # This function takes a single image as input,
-    # and a boolean whether to build the training or testing graph.
-    
-    if training:
-        # For training, add the following to the TensorFlow graph.
-
-        # Randomly crop the input image.
-#        image = tf.random_crop(image, size=[img_size_cropped, img_size_cropped, num_channels])
-
-        # Randomly flip the image horizontally.
-        image = tf.image.random_flip_left_right(image)
-        
-        # Randomly adjust hue, contrast and saturation.
-        image = tf.image.random_hue(image, max_delta=0.05)
-        image = tf.image.random_contrast(image, lower=0.3, upper=1.0)
-        image = tf.image.random_brightness(image, max_delta=0.2)
-        image = tf.image.random_saturation(image, lower=0.0, upper=2.0)
-
-        # Some of these functions may overflow and result in pixel
-        # values beyond the [0, 1] range. It is unclear from the
-        # documentation of TensorFlow 0.10.0rc0 whether this is
-        # intended. A simple solution is to limit the range.
-
-        # Limit the image pixels between [0, 1] in case of overflow.
-        image = tf.minimum(image, 1.0)
-        image = tf.maximum(image, 0.0)
-    return image
-
-def pre_process(images, training):
-    # Use TensorFlow to loop over all the input images and call
-    # the function above which takes a single image as input.
-    images = tf.map_fn(lambda image: pre_process_image(image, training), images)
-
-    return images
 
 def inference(images):
   """Build the CIFAR-10 model.
@@ -116,12 +43,12 @@ def inference(images):
   #
   # conv1
   with tf.variable_scope('conv1') as scope:
-      kernel = _variable_with_weight_decay('weights',
+      kernel = helper._variable_with_weight_decay('weights',
                                          shape=[5, 5, 3, 64],
                                          stddev=5e-2,
                                          wd=0.0)
       conv = tf.nn.conv2d(images, kernel, [1, 1, 1, 1], padding='SAME')
-      biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.0))
+      biases = helper._variable_on_cpu('biases', [64], tf.constant_initializer(0.0))
       pre_activation = tf.nn.bias_add(conv, biases)
       conv1 = tf.nn.relu(pre_activation, name=scope.name)
 
@@ -134,12 +61,12 @@ def inference(images):
 
   # conv2
   with tf.variable_scope('conv2') as scope:
-      kernel = _variable_with_weight_decay('weights',
+      kernel = helper._variable_with_weight_decay('weights',
                                            shape=[5, 5, 64, 64],
                                            stddev=5e-2,
                                            wd=0.0)
       conv = tf.nn.conv2d(norm1, kernel, [1, 1, 1, 1], padding='SAME')
-      biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.1))
+      biases = helper._variable_on_cpu('biases', [64], tf.constant_initializer(0.1))
       pre_activation = tf.nn.bias_add(conv, biases)
       conv2 = tf.nn.relu(pre_activation, name=scope.name)
     
@@ -155,16 +82,16 @@ def inference(images):
     # Move everything into depth so we can perform a single matrix multiply.
     reshape = tf.reshape(pool2, [64, -1])
     dim = reshape.get_shape()[1]
-    weights = _variable_with_weight_decay('weights', shape=[dim, 384],
+    weights = helper._variable_with_weight_decay('weights', shape=[dim, 384],
                                           stddev=0.04, wd=0.004)
-    biases = _variable_on_cpu('biases', [384], tf.constant_initializer(0.1))
+    biases = helper._variable_on_cpu('biases', [384], tf.constant_initializer(0.1))
     local3 = tf.nn.relu(tf.matmul(reshape, weights) + biases, name=scope.name)
 
   # local4
   with tf.variable_scope('local4') as scope:
-      weights = _variable_with_weight_decay('weights', shape=[384, 192],
+      weights = helper._variable_with_weight_decay('weights', shape=[384, 192],
                                               stddev=0.04, wd=0.004)
-      biases = _variable_on_cpu('biases', [192], tf.constant_initializer(0.1))
+      biases = helper._variable_on_cpu('biases', [192], tf.constant_initializer(0.1))
       local4 = tf.nn.relu(tf.matmul(local3, weights) + biases, name=scope.name)
     
 
@@ -173,9 +100,9 @@ def inference(images):
   # tf.nn.sparse_softmax_cross_entropy_with_logits accepts the unscaled logits
   # and performs the softmax internally for efficiency.
   with tf.variable_scope('softmax_linear') as scope:
-      weights = _variable_with_weight_decay('weights', [192, num_classes],
+      weights = helper._variable_with_weight_decay('weights', [192, num_classes],
                                           stddev=1 / 192.0, wd=0.0)
-      biases = _variable_on_cpu('biases', [num_classes],
+      biases = helper._variable_on_cpu('biases', [num_classes],
                               tf.constant_initializer(0.0))
       softmax_linear = tf.add(tf.matmul(local4, weights), biases, name=scope.name)
   
@@ -185,7 +112,7 @@ def inference(images):
 def create_network():
     
     images=x
-    images=pre_process(images,training=True)
+    images=helper.pre_process(images,training=True)
     logits=inference(images)
     loss=tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_true, logits=logits))
     y_pred=tf.nn.softmax(logits=logits)
@@ -216,6 +143,12 @@ def optimize(num_iterations):
         # Get a batch of training examples.
         # x_batch now holds a batch of images and
         # y_true_batch are the true labels for those images.
+        print("new weights iteration beg\n")
+        with tf.variable_scope('softmax_linear',reuse=True) as scope:    
+            print(session.run(tf.get_variable("weights")))
+           
+        print("\n")
+        
         x_batch,y_batch=random_batch()
 
         # Put the batch into a dict with the proper names
@@ -239,7 +172,62 @@ def optimize(num_iterations):
             # Print status.
             msg = "Global Step: {0:>6}, Training Batch Accuracy: {1:>6.1%}"
             print(msg.format(i_global, batch_acc))
-       
+            
+        print("new weights iteration end \n")
+        with tf.variable_scope('softmax_linear',reuse=True) as scope:    
+            print(session.run(tf.get_variable("weights")))
+           
+        print("\n")
+
+    
+
+def predict_cls(images, labels, cls_true):
+    # Number of images.
+    num_images = len(images)
+    batch_size=256
+    # Allocate an array for the predicted classes which
+    # will be calculated in batches and filled into this array.
+    cls_pred = np.zeros(shape=num_images, dtype=np.int)
+
+    # Now calculate the predicted classes for the batches.
+    # We will just iterate through all the batches.
+    # There might be a more clever and Pythonic way of doing this.
+
+    # The starting index for the next batch is denoted i.
+    i = 0
+
+    while i < num_images:
+        # The ending index for the next batch is denoted j.
+        j = min(i + batch_size, num_images)
+
+        # Create a feed-dict with the images and labels
+        # between index i and j.
+        feed_dict = {x: images[i:j, :],
+                     y_true: labels[i:j, :]}
+
+        # Calculate the predicted class using TensorFlow.
+        cls_pred[i:j] = session.run(y_pred_cls, feed_dict=feed_dict)
+
+        # Set the start-index for the next batch to the
+        # end-index of the current batch.
+        i = j
+
+    # Create a boolean array whether each image is correctly classified.
+    correct = (cls_true == cls_pred)
+
+    return correct, cls_pred
+
+
+
+def classification_accuracy(correct):
+    # When averaging a boolean array, False means 0 and True means 1.
+    # So we are calculating: number of True / len(correct) which is
+    # the same as the classification accuracy.
+    
+    # Return the classification accuracy
+    # and the number of correct classifications.
+    return correct.mean(), correct.sum()
+
 
 
 
@@ -268,6 +256,8 @@ session=tf.Session()
 session.run(tf.global_variables_initializer())
 
 optimize(1000)
+
+
 
 
 
