@@ -53,10 +53,12 @@ class dataHelper(object):
         label_key = labels.encode(encoding='utf_8', errors='strict')
         self.data_set_labels = np.array(self.data_dict[label_key])
         self.num_classes = np.max(self.data_set_labels) + 1
+        self.true_classes=self.data_set_labels
         
         #reshape to one hot form
         
         self.data_set_labels = np.eye(self.num_classes, dtype=float)[self.data_set_labels]
         return self.data_set_labels,self.num_classes
     
-    
+    def returnClasses(self):
+        return self.true_classes

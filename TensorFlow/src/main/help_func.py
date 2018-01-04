@@ -13,7 +13,7 @@ class processHelp(object):
     '''
 
 
-    def __init__(self, params):
+    def __init__(self):
         '''
         Constructor
         '''
@@ -42,9 +42,10 @@ class processHelp(object):
         # For training, add the following to the TensorFlow graph.
 
         # Randomly crop the input image.
-#        image = tf.random_crop(image, size=[img_size_cropped, img_size_cropped, num_channels])
+            image = tf.random_crop(image, size=[24, 24, 3])
 
         # Randomly flip the image horizontally.
+        
             image = tf.image.random_flip_left_right(image)
         
         # Randomly adjust hue, contrast and saturation.
@@ -61,6 +62,12 @@ class processHelp(object):
         # Limit the image pixels between [0, 1] in case of overflow.
             image = tf.minimum(image, 1.0)
             image = tf.maximum(image, 0.0)
+            
+        else:
+            image = tf.image.resize_image_with_crop_or_pad(image,
+                                                       target_height=24,
+                                                       target_width=24)
+
         return image
 
     def pre_process(self,images, training):
