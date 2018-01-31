@@ -41,7 +41,7 @@ class dataHelper(object):
         
         #reshape data to required dimensions
         
-        self.data_set_train = np.array(self.data_set_train)
+        self.data_set_train = np.array(self.data_set_train)/255.0
         self.data_set_train = np.reshape(self.data_set_train, [-1, 3, 32, 32])
         self.data_set_train = self.data_set_train.transpose([0, 2, 3, 1])
 
